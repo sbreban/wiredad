@@ -2,11 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="458f2fc0-0f44-4edc-9452-22ff8b9bf2db" name="Default" comment="">
-      <change afterPath="$PROJECT_DIR$/dump.sql" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/clients.db" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/web.go" beforeDir="false" afterPath="$PROJECT_DIR$/web.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dump.sql" beforeDir="false" afterPath="$PROJECT_DIR$/dump.sql" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -52,7 +48,7 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
-      <file leaf-file-name="web.go" pinned="false" current-in-tab="true">
+      <file leaf-file-name="web.go" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/web.go">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="1674">
@@ -73,11 +69,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="dump.sql" pinned="false" current-in-tab="false">
+      <file leaf-file-name="dump.sql" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/dump.sql">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="378">
-              <caret line="21" column="44" selection-start-line="21" selection-start-column="44" selection-end-line="21" selection-end-column="44" />
+            <state relative-caret-position="540">
+              <caret line="30" column="33" selection-end-line="31" />
             </state>
           </provider>
         </entry>
@@ -93,8 +89,8 @@
       <list>
         <option value="$PROJECT_DIR$/web.go" />
         <option value="$APPLICATION_CONFIG_DIR$/consoles/db/1efc9258-0bf0-48af-b2b6-c6bdd7c20e59/console.sql" />
-        <option value="$PROJECT_DIR$/dump.sql" />
         <option value="$PROJECT_DIR$/.gitignore" />
+        <option value="$PROJECT_DIR$/dump.sql" />
       </list>
     </option>
   </component>
@@ -166,7 +162,7 @@
       <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info anchor="bottom" id="Run" order="2" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info anchor="bottom" id="Terminal" order="7" />
+      <window_info anchor="bottom" id="Terminal" order="7" weight="0.32984716" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -271,13 +267,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/dump.sql">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="378">
-          <caret line="21" column="44" selection-start-line="21" selection-start-column="44" selection-end-line="21" selection-end-column="44" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/.gitignore">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="234">
@@ -292,6 +281,13 @@
           <folding>
             <element signature="e#14#122#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/dump.sql">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="540">
+          <caret line="30" column="33" selection-end-line="31" />
         </state>
       </provider>
     </entry>

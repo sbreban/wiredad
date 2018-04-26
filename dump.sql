@@ -1,4 +1,6 @@
+drop table if exists client_domain;
 drop table if exists clients;
+drop table if exists domains;
 
 create table clients
 (
@@ -8,10 +10,6 @@ create table clients
   ip_addr  varchar(50)
 );
 
-insert into clients values (1, 'raspberry', 'a', '192.168.0.103');
-
-drop table if exists domains;
-
 create table domains
 (
   id     int primary key,
@@ -19,4 +17,15 @@ create table domains
   domain varchar(50)
 );
 
+CREATE TABLE client_domain
+(
+    client_id int,
+    domain_id int,
+    blocked int,
+    CONSTRAINT client_domain_client_fk FOREIGN KEY (client_id) REFERENCES clients (id),
+    CONSTRAINT client_domain_domain_fk FOREIGN KEY (domain_id) REFERENCES domains (id)
+);
+
+insert into clients values (1, 'raspberry', 'a', '192.168.0.103');
 insert into domains values (1, 'Facebook', 'facebook.com');
+insert into client_domain values (1, 1, 0);
