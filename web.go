@@ -11,17 +11,18 @@ import (
 )
 
 type NetClient struct {
-	Name string
+	Id      int
+	Name    string
 	MacAddr string
-	IpAddr string
+	IpAddr  string
 }
 
 type NetClients []NetClient
 
 type NetDomain struct {
-	Name string
+	Id     int
+	Name   string
 	Domain string
-	Block int
 }
 
 type NetDomains []NetDomain
@@ -33,23 +34,24 @@ func clientsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("select name, mac_addr, ip_addr from clients")
+	rows, err := db.Query("select id, name, mac_addr, ip_addr from clients")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rows.Close()
 	var netClients NetClients
 	for rows.Next() {
+		var id int
 		var name string
 		var macAddr string
 		var ipAddr string
 
-		err = rows.Scan(&name, &macAddr, &ipAddr)
+		err = rows.Scan(&id, &name, &macAddr, &ipAddr)
 		if err != nil {
 			log.Fatal(err)
 		}
 		fmt.Println(name, macAddr, ipAddr)
-		client := NetClient{Name:name, MacAddr:macAddr, IpAddr:ipAddr}
+		client := NetClient{Id: id, Name: name, MacAddr: macAddr, IpAddr: ipAddr}
 		netClients = append(netClients, client)
 	}
 	err = rows.Err()
@@ -67,23 +69,23 @@ func domainsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("select name, domain, block from domains")
+	rows, err := db.Query("select id, name, domain from domains")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rows.Close()
 	var netDomains NetDomains
 	for rows.Next() {
+		var id int
 		var name string
 		var domain string
-		var block int
 
-		err = rows.Scan(&name, &domain, &block)
+		err = rows.Scan(&id, &name, &domain)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(name, domain, block)
-		domainElement := NetDomain{Name:name, Domain:domain, Block:block}
+		fmt.Println(id, name, domain)
+		domainElement := NetDomain{Id: id, Name: name, Domain: domain}
 		netDomains = append(netDomains, domainElement)
 	}
 	err = rows.Err()
@@ -93,7 +95,6 @@ func domainsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(netDomains)
 	json.NewEncoder(os.Stdout).Encode(netDomains)
 }
-
 
 func main() {
 	http.HandleFunc("/clients", clientsHandler)
