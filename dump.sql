@@ -29,4 +29,8 @@ CREATE TABLE client_domain
 insert into clients values (1, 'raspberry', 'a', '192.168.0.103');
 insert into clients values (2, 'pc', 'b', '192.168.0.104');
 insert into domains values (1, 'Facebook', 'facebook.com');
+insert into domains values (2, 'Instagram', 'instagram.com');
+insert into domains values (3, 'Strava', 'strava.com');
 insert into client_domain values (1, 1, 0);
+insert into client_domain values (1, 2, 0);
+insert into client_domain values (1, 3, 0);
