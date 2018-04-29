@@ -15,3 +15,4 @@ clients.db
 wiredad
 
 .idea/dataSources*
+.idea/workspace.xml
