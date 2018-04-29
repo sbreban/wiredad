@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"os/exec"
 	"bytes"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/auth0/go-jwt-middleware"
 )
 
 type Route struct {
@@ -207,10 +209,41 @@ var routes = Routes{
 	},
 }
 
+func validateToken(tokenString string) {
+	// Parse takes the token string and a function for looking up the key. The latter is especially
+	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
+	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
+	// to the callback, providing flexibility.
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Don't forget to validate the alg is what you expect:
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
+		return secret, nil
+	})
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		fmt.Println(claims["sub"], claims["name"], claims["iat"])
+	} else {
+		fmt.Println(err)
+	}
+}
+
+var secret = []byte("sesame")
+
 func main() {
+	var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
+		ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
+			return secret, nil
+		},
+		SigningMethod: jwt.SigningMethodHS256,
+	})
+
 	router := mux.NewRouter()
 	for _, route := range routes {
-		router.HandleFunc(route.Pattern, route.HandlerFunc).Methods(route.Method)
+		router.Handle(route.Pattern, jwtMiddleware.Handler(route.HandlerFunc)).Methods(route.Method)
 	}
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
