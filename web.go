@@ -44,6 +44,11 @@ type NetDomain struct {
 
 type NetDomains []NetDomain
 
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "{'user':{'username':'ali','password':'sesame'}}")
+	fmt.Print("{'user':{'username':'ali','password':'sesame'}}")
+}
+
 func clientsHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
@@ -189,6 +194,12 @@ func checkError(err error) {
 }
 
 var routes = Routes{
+	Route{
+		"Login",
+		"GET",
+		"/login",
+		loginHandler,
+	},
 	Route{
 		"Clients",
 		"GET",
