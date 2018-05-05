@@ -44,9 +44,43 @@ type NetDomain struct {
 
 type NetDomains []NetDomain
 
+type User struct {
+	Id       int
+	Username string
+	Password string
+}
+
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "{'user':{'username':'ali','password':'sesame'}}")
-	fmt.Print("{'user':{'username':'ali','password':'sesame'}}")
+	var userJson User
+	json.NewDecoder(r.Body).Decode(&userJson)
+	fmt.Println(userJson)
+
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	rows, err := db.Query("select id, username, password from user " +
+		"where username = ? and password = ?", userJson.Username, userJson.Password)
+	checkError(err)
+	defer rows.Close()
+	var userDb *User
+	for rows.Next() {
+		var id int
+		var username string
+		var password string
+
+		err = rows.Scan(&id, &username, &password)
+		checkError(err)
+		userDb = &User{Id:id, Username:username, Password:password}
+	}
+	err = rows.Err()
+	checkError(err)
+
+	if userDb != nil {
+		json.NewEncoder(w).Encode(userDb)
+		json.NewEncoder(os.Stdout).Encode(userDb)
+	}
+
 }
 
 func clientsHandler(w http.ResponseWriter, r *http.Request) {
@@ -196,7 +230,7 @@ func checkError(err error) {
 var routes = Routes{
 	Route{
 		"Login",
-		"GET",
+		"POST",
 		"/login",
 		loginHandler,
 	},
