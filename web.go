@@ -59,8 +59,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	checkError(err)
 	defer db.Close()
 
-	rows, err := db.Query("select id, username, password from user " +
-		"where username = ? and password = ?", userJson.Username, userJson.Password)
+	rows, err := db.Query("select id, username, password from users where username = ? and password = ?", userJson.Username, userJson.Password)
 	checkError(err)
 	defer rows.Close()
 	var userDb *User
@@ -88,7 +87,10 @@ func clientsHandler(w http.ResponseWriter, r *http.Request) {
 	checkError(err)
 	defer db.Close()
 
-	rows, err := db.Query("select id, name, mac_addr, ip_addr from clients")
+	params := mux.Vars(r)
+	fmt.Println(params)
+
+	rows, err := db.Query("select c.id, c.name, c.mac_addr, c.ip_addr from clients c inner join user_client uc on c.id = uc.client_id where uc.user_id = ?", params["userId"])
 	checkError(err)
 	defer rows.Close()
 	var netClients NetClients
@@ -118,9 +120,7 @@ func clientDomainsHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	fmt.Println(params)
 
-	rows, err := db.Query("select d.id, cd.client_id, d.name, d.domain, cd.block from domains d "+
-		"inner join client_domain cd on cd.domain_id = d.id "+
-		"where cd.client_id = ? ", params["clientId"])
+	rows, err := db.Query("select d.id, cd.client_id, d.name, d.domain, cd.block from domains d inner join client_domain cd on cd.domain_id = d.id where cd.client_id = ? ", params["clientId"])
 	checkError(err)
 	defer rows.Close()
 
@@ -149,9 +149,7 @@ func getDomain(domainId int) NetDomain {
 	checkError(err)
 	defer db.Close()
 
-	rows, err := db.Query("select d.id, cd.client_id, d.name, d.domain, cd.block from domains d "+
-		"inner join client_domain cd on cd.domain_id = d.id "+
-		"where cd.domain_id = ? ", domainId)
+	rows, err := db.Query("select d.id, cd.client_id, d.name, d.domain, cd.block from domains d inner join client_domain cd on cd.domain_id = d.id where cd.domain_id = ? ", domainId)
 	checkError(err)
 	defer rows.Close()
 
@@ -237,7 +235,7 @@ var routes = Routes{
 	Route{
 		"Clients",
 		"GET",
-		"/clients",
+		"/clients/{userId}",
 		clientsHandler,
 	},
 	Route{
