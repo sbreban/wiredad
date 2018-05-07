@@ -207,9 +207,9 @@ func domainBlockHandler(w http.ResponseWriter, r *http.Request) {
 
 	var cmd *exec.Cmd
 	if block == 1 {
-		cmd = exec.Command("pihole", "-b", netDomain.Domain)
+		cmd = exec.Command("pihole", "-wild", netDomain.Domain)
 	} else {
-		cmd = exec.Command("pihole", "-b", "-d", netDomain.Domain)
+		cmd = exec.Command("pihole", "-wild", "-d", netDomain.Domain)
 	}
 
 	var out bytes.Buffer
