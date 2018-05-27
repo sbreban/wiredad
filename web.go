@@ -36,7 +36,6 @@ type NetClients []NetClient
 
 type NetDomain struct {
 	Id       int
-	ClientId int
 	Name     string
 	Domain   string
 	Block    int
@@ -112,30 +111,26 @@ func clientsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(os.Stdout).Encode(netClients)
 }
 
-func clientDomainsHandler(w http.ResponseWriter, r *http.Request) {
+func domainsHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
 	defer db.Close()
 
-	params := mux.Vars(r)
-	fmt.Println(params)
-
-	rows, err := db.Query("select d.id, cd.client_id, d.name, d.domain, cd.block from domains d inner join client_domain cd on cd.domain_id = d.id where cd.client_id = ? ", params["clientId"])
+	rows, err := db.Query("select d.id, d.name, d.domain, d.block from domains d")
 	checkError(err)
 	defer rows.Close()
 
 	var netDomains NetDomains
 	for rows.Next() {
 		var id int
-		var clientId int
 		var name string
 		var domain string
 		var block int
 
-		err = rows.Scan(&id, &clientId, &name, &domain, &block)
+		err = rows.Scan(&id, &name, &domain, &block)
 		checkError(err)
 		fmt.Println(id, name, domain)
-		domainElement := NetDomain{Id: id, ClientId: clientId, Name: name, Domain: domain, Block: block}
+		domainElement := NetDomain{Id: id, Name: name, Domain: domain, Block: block}
 		netDomains = append(netDomains, domainElement)
 	}
 	err = rows.Err()
@@ -149,21 +144,20 @@ func getDomain(domainId int) NetDomain {
 	checkError(err)
 	defer db.Close()
 
-	rows, err := db.Query("select d.id, cd.client_id, d.name, d.domain, cd.block from domains d inner join client_domain cd on cd.domain_id = d.id where cd.domain_id = ? ", domainId)
+	rows, err := db.Query("select d.id, d.name, d.domain, d.block from domains d where d.id = ? ", domainId)
 	checkError(err)
 	defer rows.Close()
 
 	var netDomain NetDomain
 	for rows.Next() {
 		var id int
-		var clientId int
 		var name string
 		var domain string
 		var block int
 
-		err = rows.Scan(&id, &clientId, &name, &domain, &block)
+		err = rows.Scan(&id, &name, &domain, &block)
 		checkError(err)
-		netDomain = NetDomain{Id: id, ClientId: clientId, Name: name, Domain: domain, Block: block}
+		netDomain = NetDomain{Id: id, Name: name, Domain: domain, Block: block}
 		fmt.Printf("Domain: %v", netDomain)
 	}
 	err = rows.Err()
@@ -180,8 +174,7 @@ func domainBlockHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	fmt.Printf("Params: %v\n", params)
 
-	stmt, err := db.Prepare("update client_domain " +
-		"set block = ? where domain_id = ?")
+	stmt, err := db.Prepare("update domains set block = ? where id = ?")
 	checkError(err)
 
 	tx, err := db.Begin()
@@ -241,8 +234,8 @@ var routes = Routes{
 	Route{
 		"Domains",
 		"GET",
-		"/domains/{clientId}",
-		clientDomainsHandler,
+		"/domains",
+		domainsHandler,
 	},
 	Route{
 		"Domains",
