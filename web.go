@@ -25,14 +25,14 @@ type Route struct {
 
 type Routes []Route
 
-type NetClient struct {
+type Device struct {
 	Id      int
 	Name    string
 	MacAddr string
 	IpAddr  string
 }
 
-type NetClients []NetClient
+type Devices []Device
 
 type NetDomain struct {
 	Id       int
@@ -139,7 +139,7 @@ func newUserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func clientsHandler(w http.ResponseWriter, r *http.Request) {
+func devicesHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
 	defer db.Close()
@@ -147,10 +147,10 @@ func clientsHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	fmt.Printf("Clients param: %v\n", params)
 
-	rows, err := db.Query("select c.id, c.name, c.mac_addr, c.ip_addr from clients c inner join user_client uc on c.id = uc.client_id where uc.user_id = ?", params["userId"])
+	rows, err := db.Query("select d.id, d.name, d.mac_addr, d.ip_addr from devices d inner join user_device ud on d.id = ud.device_id where ud.user_id = ?", params["userId"])
 	checkError(err)
 	defer rows.Close()
-	var netClients NetClients
+	var devices Devices
 	for rows.Next() {
 		var id int
 		var name string
@@ -160,13 +160,68 @@ func clientsHandler(w http.ResponseWriter, r *http.Request) {
 		err = rows.Scan(&id, &name, &macAddr, &ipAddr)
 		checkError(err)
 		fmt.Println(name, macAddr, ipAddr)
-		client := NetClient{Id: id, Name: name, MacAddr: macAddr, IpAddr: ipAddr}
-		netClients = append(netClients, client)
+		device := Device{Id: id, Name: name, MacAddr: macAddr, IpAddr: ipAddr}
+		devices = append(devices, device)
 	}
 	err = rows.Err()
 	checkError(err)
-	json.NewEncoder(w).Encode(netClients)
-	json.NewEncoder(os.Stdout).Encode(netClients)
+	json.NewEncoder(w).Encode(devices)
+	json.NewEncoder(os.Stdout).Encode(devices)
+}
+
+func registerDeviceHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	params := mux.Vars(r)
+	fmt.Printf("Register device param: %v\n", params)
+
+	var deviceJson Device
+	json.NewDecoder(r.Body).Decode(&deviceJson)
+	fmt.Printf("New device: %v\n", deviceJson)
+
+	stmt, err := db.Prepare("insert into devices(name, mac_addr, ip_addr) VALUES (?, ?, ?)")
+	checkError(err)
+
+	tx, err := db.Begin()
+	checkError(err)
+
+	res, err := tx.Stmt(stmt).Exec(deviceJson.Name, deviceJson.MacAddr, deviceJson.IpAddr)
+	checkError(err)
+
+	affected, err := res.RowsAffected()
+	checkError(err)
+
+	tx.Commit()
+
+	fmt.Printf("Insert device affected rows: %d\n", affected)
+
+	rows, err := db.Query("select last_insert_rowid()")
+	checkError(err)
+
+	var deviceId int
+	if rows.Next() {
+		err = rows.Scan(&deviceId)
+		checkError(err)
+		fmt.Printf("Device id: %d\n", deviceId)
+	}
+
+	stmt, err = db.Prepare("insert into user_device(user_id, device_id) VALUES (?, ?)")
+	checkError(err)
+
+	tx, err = db.Begin()
+	checkError(err)
+
+	res, err = tx.Stmt(stmt).Exec(params["userId"], deviceId)
+	checkError(err)
+
+	affected, err = res.RowsAffected()
+	checkError(err)
+
+	tx.Commit()
+
+	fmt.Printf("Insert device link affected rows: %d\n", affected)
 }
 
 func domainsHandler(w http.ResponseWriter, r *http.Request) {
@@ -296,10 +351,16 @@ var routes = Routes{
 		newUserHandler,
 	},
 	Route{
-		"Clients",
+		"Devices",
 		"GET",
-		"/clients/{userId}",
-		clientsHandler,
+		"/devices/{userId}",
+		devicesHandler,
+	},
+	Route{
+		"RegisterDevice",
+		"POST",
+		"/register_device/{userId}",
+		registerDeviceHandler,
 	},
 	Route{
 		"Domains",
@@ -308,7 +369,7 @@ var routes = Routes{
 		domainsHandler,
 	},
 	Route{
-		"Domains",
+		"BlockDomains",
 		"POST",
 		"/domains/{domainId}/{block}",
 		domainBlockHandler,
