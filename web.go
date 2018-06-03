@@ -34,14 +34,14 @@ type Device struct {
 
 type Devices []Device
 
-type NetDomain struct {
+type Domain struct {
 	Id       int
 	Name     string
 	Domain   string
 	Block    int
 }
 
-type NetDomains []NetDomain
+type Domains []Domain
 
 type User struct {
 	Id       int
@@ -112,7 +112,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(os.Stdout).Encode(users)
 }
 
-func newUserHandler(w http.ResponseWriter, r *http.Request) {
+func addUserHandler(w http.ResponseWriter, r *http.Request) {
 	var userJson User
 	json.NewDecoder(r.Body).Decode(&userJson)
 	fmt.Printf("New user: %v\n", userJson)
@@ -233,7 +233,7 @@ func domainsHandler(w http.ResponseWriter, r *http.Request) {
 	checkError(err)
 	defer rows.Close()
 
-	var netDomains NetDomains
+	var netDomains Domains
 	for rows.Next() {
 		var id int
 		var name string
@@ -243,7 +243,7 @@ func domainsHandler(w http.ResponseWriter, r *http.Request) {
 		err = rows.Scan(&id, &name, &domain, &block)
 		checkError(err)
 		fmt.Println(id, name, domain)
-		domainElement := NetDomain{Id: id, Name: name, Domain: domain, Block: block}
+		domainElement := Domain{Id: id, Name: name, Domain: domain, Block: block}
 		netDomains = append(netDomains, domainElement)
 	}
 	err = rows.Err()
@@ -252,7 +252,33 @@ func domainsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(os.Stdout).Encode(netDomains)
 }
 
-func getDomain(domainId int) NetDomain {
+func addDomainHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	var domainJson Domain
+	json.NewDecoder(r.Body).Decode(&domainJson)
+	fmt.Printf("New domain: %v\n", domainJson)
+
+	stmt, err := db.Prepare("insert into domains(name, domain, block) VALUES (?, ?, ?)")
+	checkError(err)
+
+	tx, err := db.Begin()
+	checkError(err)
+
+	res, err := tx.Stmt(stmt).Exec(domainJson.Name, domainJson.Domain, domainJson.Block)
+	checkError(err)
+
+	affected, err := res.RowsAffected()
+	checkError(err)
+
+	tx.Commit()
+
+	fmt.Printf("Insert domain affected rows: %d\n", affected)
+}
+
+func getDomain(domainId int) Domain {
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
 	defer db.Close()
@@ -261,7 +287,7 @@ func getDomain(domainId int) NetDomain {
 	checkError(err)
 	defer rows.Close()
 
-	var netDomain NetDomain
+	var netDomain Domain
 	for rows.Next() {
 		var id int
 		var name string
@@ -270,7 +296,7 @@ func getDomain(domainId int) NetDomain {
 
 		err = rows.Scan(&id, &name, &domain, &block)
 		checkError(err)
-		netDomain = NetDomain{Id: id, Name: name, Domain: domain, Block: block}
+		netDomain = Domain{Id: id, Name: name, Domain: domain, Block: block}
 		fmt.Printf("Domain: %v", netDomain)
 	}
 	err = rows.Err()
@@ -345,10 +371,10 @@ var routes = Routes{
 		usersHandler,
 	},
 	Route{
-		"NewUser",
+		"AddUser",
 		"POST",
-		"/new_user",
-		newUserHandler,
+		"/add_user",
+		addUserHandler,
 	},
 	Route{
 		"Devices",
@@ -367,6 +393,12 @@ var routes = Routes{
 		"GET",
 		"/domains",
 		domainsHandler,
+	},
+	Route{
+		"AddDomain",
+		"POST",
+		"/add_domain",
+		addDomainHandler,
 	},
 	Route{
 		"BlockDomains",
