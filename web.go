@@ -50,6 +50,8 @@ type User struct {
 	Admin	 int
 }
 
+type Users []User
+
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	var userJson User
 	json.NewDecoder(r.Body).Decode(&userJson)
@@ -81,6 +83,34 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(os.Stdout).Encode(userDb)
 	}
 
+}
+
+func usersHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	params := mux.Vars(r)
+	fmt.Println(params)
+
+	rows, err := db.Query("select u.id, u.username from users u inner join user_admin a on u.id = a.user_id where a.admin_id = ?", params["userId"])
+	checkError(err)
+	defer rows.Close()
+	var users Users
+	for rows.Next() {
+		var id int
+		var name string
+
+		err = rows.Scan(&id, &name)
+		checkError(err)
+		fmt.Println(id, name)
+		user := User{Id:id, Username:name}
+		users = append(users, user)
+	}
+	err = rows.Err()
+	checkError(err)
+	json.NewEncoder(w).Encode(users)
+	json.NewEncoder(os.Stdout).Encode(users)
 }
 
 func clientsHandler(w http.ResponseWriter, r *http.Request) {
@@ -226,6 +256,12 @@ var routes = Routes{
 		"POST",
 		"/login",
 		loginHandler,
+	},
+	Route{
+		"Users",
+		"GET",
+		"/users/{userId}",
+		usersHandler,
 	},
 	Route{
 		"Clients",

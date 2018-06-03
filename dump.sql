@@ -48,11 +48,13 @@ create table domains
 insert into users values (1, 'sbreban', 'sbreban', 1);
 insert into users values (2, 'jr', 'jr', 0);
 
+insert into user_admin values (2, 1);
+
 insert into clients values (1, 'phone', 'a', '192.168.0.103');
 insert into clients values (2, 'tablet', 'b', '192.168.0.104');
 
 insert into user_client values (2, 1);
-insert into user_client values (2, 1);
+insert into user_client values (2, 2);
 
 insert into domains values (1, 'Facebook', 'facebook.com', 0);
 insert into domains values (2, 'Instagram', 'instagram.com', 0);
