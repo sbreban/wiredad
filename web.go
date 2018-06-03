@@ -278,6 +278,37 @@ func addDomainHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Insert domain affected rows: %d\n", affected)
 }
 
+func deleteDomainHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	params := mux.Vars(r)
+	fmt.Printf("Delete domain param: %v\n", params)
+
+	domainId, err := strconv.Atoi(params["domainId"])
+	checkError(err)
+
+	changeBlockState(domainId, 0)
+
+	stmt, err := db.Prepare("delete from domains where id = ?")
+	checkError(err)
+
+	tx, err := db.Begin()
+	checkError(err)
+
+	res, err := tx.Stmt(stmt).Exec(domainId)
+	checkError(err)
+
+	affected, err := res.RowsAffected()
+	checkError(err)
+
+	tx.Commit()
+
+	fmt.Printf("Delete domain affected rows: %d\n", affected)
+}
+
+
 func getDomain(domainId int) Domain {
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
@@ -333,20 +364,22 @@ func domainBlockHandler(w http.ResponseWriter, r *http.Request) {
 
 	tx.Commit()
 
-	fmt.Printf("Affected rows: %d\n", affected)
+	fmt.Printf("Domain block affected rows: %d\n", affected)
 
+	changeBlockState(domainId, block)
+}
+
+func changeBlockState(domainId int, block int) {
 	netDomain := getDomain(domainId)
-
 	var cmd *exec.Cmd
 	if block == 1 {
 		cmd = exec.Command("pihole", "-wild", netDomain.Domain)
 	} else {
 		cmd = exec.Command("pihole", "-wild", "-d", netDomain.Domain)
 	}
-
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	err = cmd.Run()
+	err := cmd.Run()
 	checkError(err)
 	fmt.Println(out.String())
 }
@@ -399,6 +432,12 @@ var routes = Routes{
 		"POST",
 		"/add_domain",
 		addDomainHandler,
+	},
+	Route{
+		"DeleteDomain",
+		"POST",
+		"/delete_domain/{domainId}",
+		deleteDomainHandler,
 	},
 	Route{
 		"BlockDomains",
