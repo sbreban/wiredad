@@ -82,7 +82,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(userDb)
 		json.NewEncoder(os.Stdout).Encode(userDb)
 	}
-
 }
 
 func usersHandler(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +92,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	fmt.Println(params)
 
-	rows, err := db.Query("select u.id, u.username from users u inner join user_admin a on u.id = a.user_id where a.admin_id = ?", params["userId"])
+	rows, err := db.Query("select u.id, u.username from users u where u.admin = ?", params["userId"])
 	checkError(err)
 	defer rows.Close()
 	var users Users
@@ -113,13 +112,40 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(os.Stdout).Encode(users)
 }
 
+func newUserHandler(w http.ResponseWriter, r *http.Request) {
+	var userJson User
+	json.NewDecoder(r.Body).Decode(&userJson)
+	fmt.Printf("New user: %v\n", userJson)
+
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	stmt, err := db.Prepare("insert into users(username, password, admin) values (?, ?, ?)")
+	checkError(err)
+
+	tx, err := db.Begin()
+	checkError(err)
+
+	res, err := tx.Stmt(stmt).Exec(userJson.Username, userJson.Password, userJson.Admin)
+	checkError(err)
+
+	affected, err := res.RowsAffected()
+	checkError(err)
+
+	tx.Commit()
+
+	fmt.Printf("Affected rows: %d\n", affected)
+}
+
+
 func clientsHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
 	defer db.Close()
 
 	params := mux.Vars(r)
-	fmt.Println(params)
+	fmt.Printf("Clients param: %v\n", params)
 
 	rows, err := db.Query("select c.id, c.name, c.mac_addr, c.ip_addr from clients c inner join user_client uc on c.id = uc.client_id where uc.user_id = ?", params["userId"])
 	checkError(err)
@@ -204,7 +230,7 @@ func domainBlockHandler(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	params := mux.Vars(r)
-	fmt.Printf("Params: %v\n", params)
+	fmt.Printf("Domain block params: %v\n", params)
 
 	stmt, err := db.Prepare("update domains set block = ? where id = ?")
 	checkError(err)
@@ -262,6 +288,12 @@ var routes = Routes{
 		"GET",
 		"/users/{userId}",
 		usersHandler,
+	},
+	Route{
+		"NewUser",
+		"POST",
+		"/new_user",
+		newUserHandler,
 	},
 	Route{
 		"Clients",
