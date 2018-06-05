@@ -308,6 +308,42 @@ func deleteDomainHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Delete domain affected rows: %d\n", affected)
 }
 
+func editDomainHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	var domainJson Domain
+	json.NewDecoder(r.Body).Decode(&domainJson)
+	fmt.Printf("Edited domain: %v\n", domainJson)
+
+	params := mux.Vars(r)
+	fmt.Printf("Edit domain param: %v\n", params)
+
+	domainId, err := strconv.Atoi(params["domainId"])
+	checkError(err)
+
+	changeBlockState(domainId, 0)
+
+	stmt, err := db.Prepare("update domains set domain = ? where id = ?")
+	checkError(err)
+
+	tx, err := db.Begin()
+	checkError(err)
+
+	res, err := tx.Stmt(stmt).Exec(domainJson.Domain, domainId)
+	checkError(err)
+
+	affected, err := res.RowsAffected()
+	checkError(err)
+
+	tx.Commit()
+
+	fmt.Printf("Edit domain affected rows: %d\n", affected)
+
+	changeBlockState(domainId, domainJson.Block)
+}
+
 
 func getDomain(domainId int) Domain {
 	db, err := sql.Open("sqlite3", "./clients.db")
@@ -328,7 +364,7 @@ func getDomain(domainId int) Domain {
 		err = rows.Scan(&id, &name, &domain, &block)
 		checkError(err)
 		netDomain = Domain{Id: id, Name: name, Domain: domain, Block: block}
-		fmt.Printf("Domain: %v", netDomain)
+		fmt.Printf("Domain: %v\n", netDomain)
 	}
 	err = rows.Err()
 	checkError(err)
@@ -438,6 +474,12 @@ var routes = Routes{
 		"POST",
 		"/delete_domain/{domainId}",
 		deleteDomainHandler,
+	},
+	Route{
+		"EditDomain",
+		"POST",
+		"/edit_domain/{domainId}",
+		editDomainHandler,
 	},
 	Route{
 		"BlockDomains",
