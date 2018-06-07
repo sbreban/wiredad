@@ -373,6 +373,33 @@ func getDomain(domainId int) Domain {
 	return netDomain
 }
 
+func getDevice(deviceId int) Device {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	rows, err := db.Query("select d.id, d.name, d.mac_addr, d.ip_addr from devices d where d.id = ? ", deviceId)
+	checkError(err)
+	defer rows.Close()
+
+	var device Device
+	for rows.Next() {
+		var id int
+		var name string
+		var macAddr string
+		var ipAddr string
+
+		err = rows.Scan(&id, &name, &macAddr, &ipAddr)
+		checkError(err)
+		device = Device{Id: id, Name: name, MacAddr: macAddr, IpAddr: ipAddr}
+		fmt.Printf("Device: %v\n", device)
+	}
+	err = rows.Err()
+	checkError(err)
+
+	return device
+}
+
 func domainBlockHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
@@ -449,6 +476,36 @@ func checkDeviceRegistration(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(response))
 }
 
+func deviceBlockHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	params := mux.Vars(r)
+	fmt.Printf("Device block params: %v\n", params)
+
+	deviceId, err := strconv.Atoi(params["deviceId"])
+	checkError(err)
+
+	block, err := strconv.Atoi(params["block"])
+	checkError(err)
+
+	device := getDevice(deviceId)
+
+	var cmd *exec.Cmd
+	if block == 1 {
+		cmd = exec.Command("iptables", "-A", "INPUT", "-m", "mac", "--mac-source", device.MacAddr, "-j", "DROP")
+	} else {
+		cmd = exec.Command("iptables", "-D", "INPUT", "-m", "mac", "--mac-source", device.MacAddr, "-j", "DROP")
+	}
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err = cmd.Run()
+	checkError(err)
+	fmt.Println(out.String())
+}
+
 func checkError(err error) {
 	if err != nil {
 		panic(err)
@@ -521,6 +578,12 @@ var routes = Routes{
 		"POST",
 		"/check_device_registration",
 		checkDeviceRegistration,
+	},
+	Route{
+		"BlockDevice",
+		"POST",
+		"/devices/{deviceId}/{block}",
+		deviceBlockHandler,
 	},
 }
 

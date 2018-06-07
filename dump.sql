@@ -39,8 +39,8 @@ insert into users values (1, 'sr', 'sr', 0);
 insert into users values (2, 'jr', 'jr', 1);
 insert into users values (3, 'jre', 'jre', 1);
 
-insert into devices values (1, 'phone', 'a', '192.168.0.103');
-insert into devices values (2, 'tablet', 'b', '192.168.0.104');
+insert into devices values (1, 'phone', 'DC:0B:34:CC:B0:00', '192.168.0.103');
+insert into devices values (2, 'tablet', 'DC:0B:00:CC:B0:FF', '192.168.0.104');
 
 insert into user_device values (2, 1);
 insert into user_device values (2, 2);
