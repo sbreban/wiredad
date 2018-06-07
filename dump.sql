@@ -35,7 +35,7 @@ create table domains
   block  int
 );
 
-insert into users values (1, 'sbreban', 'sbreban', 0);
+insert into users values (1, 'sr', 'sr', 0);
 insert into users values (2, 'jr', 'jr', 1);
 insert into users values (3, 'jre', 'jre', 1);
 

@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/auth0/go-jwt-middleware"
+	"io/ioutil"
 )
 
 type Route struct {
@@ -420,6 +421,34 @@ func changeBlockState(domainId int, block int) {
 	fmt.Println(out.String())
 }
 
+func checkDeviceRegistration(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	fmt.Println("Check device registration")
+	var macAddr string
+	content, err := ioutil.ReadAll(r.Body)
+	checkError(err)
+	macAddr = string(content)
+	fmt.Printf("Register mac: %s\n", macAddr)
+
+	rows, err := db.Query("select id from devices where mac_addr = ? ", macAddr)
+	checkError(err)
+	defer rows.Close()
+
+	var response string
+	if rows.Next() {
+		response = "PRESENT"
+	} else {
+		response = "MISSING"
+	}
+	err = rows.Err()
+	checkError(err)
+
+	w.Write([]byte(response))
+}
+
 func checkError(err error) {
 	if err != nil {
 		panic(err)
@@ -486,6 +515,12 @@ var routes = Routes{
 		"POST",
 		"/domains/{domainId}/{block}",
 		domainBlockHandler,
+	},
+	Route{
+		"CheckDeviceRegistration",
+		"POST",
+		"/check_device_registration",
+		checkDeviceRegistration,
 	},
 }
 
