@@ -35,6 +35,7 @@ type Device struct {
 	Name    string
 	MacAddr string
 	IpAddr  string
+	Block   int
 }
 
 type Devices []Device
@@ -173,9 +174,9 @@ func devicesHandler(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	params := mux.Vars(r)
-	fmt.Printf("Clients param: %v\n", params)
+	fmt.Printf("Devices param: %v\n", params)
 
-	rows, err := db.Query("select d.id, d.name, d.mac_addr, d.ip_addr from devices d inner join user_device ud on d.id = ud.device_id where ud.user_id = ?", params["userId"])
+	rows, err := db.Query("select d.id, d.name, d.mac_addr, d.ip_addr, db.block from devices d inner join user_device ud on d.id = ud.device_id left join device_block db on d.id = db.device_id where ud.user_id = ?", params["userId"])
 	checkError(err)
 	defer rows.Close()
 	var devices Devices
@@ -184,11 +185,17 @@ func devicesHandler(w http.ResponseWriter, r *http.Request) {
 		var name string
 		var macAddr string
 		var ipAddr string
+		var blockNull sql.NullInt64
 
-		err = rows.Scan(&id, &name, &macAddr, &ipAddr)
+		err = rows.Scan(&id, &name, &macAddr, &ipAddr, &blockNull)
 		checkError(err)
-		fmt.Println(name, macAddr, ipAddr)
-		device := Device{Id: id, Name: name, MacAddr: macAddr, IpAddr: ipAddr}
+		log.Printf("Load device: %s %s %s %v\n", name, macAddr, ipAddr, blockNull)
+		var device Device
+		if blockNull.Valid {
+			device = Device{Id: id, Name: name, MacAddr: macAddr, IpAddr: ipAddr, Block:int(blockNull.Int64)}
+		} else {
+			device = Device{Id: id, Name: name, MacAddr: macAddr, IpAddr: ipAddr, Block:0}
+		}
 		devices = append(devices, device)
 	}
 	err = rows.Err()
