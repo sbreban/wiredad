@@ -544,6 +544,39 @@ func deviceBlockHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getDeviceBlockHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	params := mux.Vars(r)
+	log.Printf("Get device block params: %v\n", params)
+
+	deviceId, err := strconv.Atoi(params["deviceId"])
+	checkError(err)
+
+	deviceBlock := getDeviceBlock(deviceId)
+	if deviceBlock == nil {
+		addDeviceBlock(deviceId)
+		deviceBlock = getDeviceBlock(deviceId)
+	}
+
+	json.NewEncoder(w).Encode(deviceBlock)
+	log.Printf("Get device block result: %v\n", deviceBlock)
+}
+
+func setDeviceBlockHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	var deviceBlockJson DeviceBlock
+	json.NewDecoder(r.Body).Decode(&deviceBlockJson)
+	fmt.Printf("Set device block: %v\n", deviceBlockJson)
+
+	setDeviceBlock(deviceBlockJson)
+}
+
 func getDeviceBlock(deviceId int) *DeviceBlock {
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
@@ -569,6 +602,31 @@ func getDeviceBlock(deviceId int) *DeviceBlock {
 	checkError(err)
 
 	return deviceBlock
+}
+
+
+func setDeviceBlock(deviceBlock DeviceBlock) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	log.Printf("Set device block for: %v\n", deviceBlock)
+
+	stmt, err := db.Prepare("update device_block set from_time = ?, to_time = ? where device_id = ?")
+	checkError(err)
+
+	tx, err := db.Begin()
+	checkError(err)
+
+	res, err := tx.Stmt(stmt).Exec(deviceBlock.FromTime, deviceBlock.ToTime, deviceBlock.DeviceId)
+	checkError(err)
+
+	affected, err := res.RowsAffected()
+	checkError(err)
+
+	tx.Commit()
+
+	log.Printf("Set device block affected rows: %d\n", affected)
 }
 
 func addDeviceBlock(deviceId int) {
@@ -831,6 +889,18 @@ var routes = Routes{
 		"POST",
 		"/devices/{deviceId}/{block}",
 		deviceBlockHandler,
+	},
+	Route{
+		"GetDeviceBlock",
+		"GET",
+		"/get_device_block/{deviceId}",
+		getDeviceBlockHandler,
+	},
+	Route{
+		"SetDeviceBlock",
+		"POST",
+		"/set_device_block",
+		setDeviceBlockHandler,
 	},
 	Route{
 		"TopDevices",
