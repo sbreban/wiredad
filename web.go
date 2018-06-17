@@ -627,6 +627,46 @@ func setDeviceBlock(deviceBlock DeviceBlock) {
 
 	tx.Commit()
 
+	loadAllBlockCrons()
+
+	log.Printf("Set device block affected rows: %d\n", affected)
+}
+
+func loadAllBlockCrons() {
+	if c != nil {
+		c.Stop()
+	}
+	c = cron.New()
+	c.Start()
+
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	rows, err := db.Query("select db.device_id, db.from_time, db.to_time, db.block from device_block db")
+	checkError(err)
+	defer rows.Close()
+
+	var deviceBlock DeviceBlock
+	for rows.Next() {
+		var deviceId int
+		var fromTime string
+		var toTime string
+		var block int
+
+		err = rows.Scan(&deviceId, &fromTime, &toTime, &block)
+		checkError(err)
+		deviceBlock = DeviceBlock{DeviceId:deviceId, FromTime:fromTime, ToTime:toTime, Block:block}
+		initDeviceBlockCron(deviceBlock)
+		log.Printf("Device block cron initialized for: %v\n", deviceBlock)
+	}
+
+	err = rows.Err()
+	checkError(err)
+
+}
+
+func initDeviceBlockCron(deviceBlock DeviceBlock) {
 	fromSplit := strings.Split(deviceBlock.FromTime, ":")
 	fromCron := fmt.Sprintf("0 %s %s * * *", fromSplit[1], fromSplit[0])
 	log.Printf("From cron: %s\n", fromCron)
@@ -634,7 +674,6 @@ func setDeviceBlock(deviceBlock DeviceBlock) {
 		log.Printf("Cron unblock for %d ran\n", deviceBlock.DeviceId)
 		blockDevice(deviceBlock.DeviceId, 0)
 	})
-
 	toSplit := strings.Split(deviceBlock.ToTime, ":")
 	toCron := fmt.Sprintf("0 %s %s * * *", toSplit[1], toSplit[0])
 	log.Printf("To cron: %s\n", toCron)
@@ -642,8 +681,6 @@ func setDeviceBlock(deviceBlock DeviceBlock) {
 		log.Printf("Cron block for %d ran\n", deviceBlock.DeviceId)
 		blockDevice(deviceBlock.DeviceId, 1)
 	})
-
-	log.Printf("Set device block affected rows: %d\n", affected)
 }
 
 func addDeviceBlock(deviceId int) {
@@ -991,8 +1028,9 @@ func main() {
 		router.Handle(route.Pattern, jwtMiddleware.Handler(route.HandlerFunc)).Methods(route.Method)
 	}
 
-	c = cron.New()
-	c.Start()
+	loadAllBlockCrons()
+
+	log.Printf("All cron jobs loaded\n")
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
