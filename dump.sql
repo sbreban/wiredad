@@ -41,9 +41,11 @@ insert into users values (3, 'jre', 'jre', 1);
 
 insert into devices values (1, 'phone', 'DC:0B:34:CC:B0:00', '192.168.0.103');
 insert into devices values (2, 'tablet', 'DC:0B:00:CC:B0:FF', '192.168.0.104');
+insert into devices values (3, 'windows-phone', '3c:83:75:d0:da:c4', '192.168.0.105');
 
 insert into user_device values (2, 1);
 insert into user_device values (2, 2);
+insert into user_device values (3, 3);
 
 insert into domains values (1, 'Facebook', 'facebook.com', 0);
 insert into domains values (2, 'Instagram', 'instagram.com', 0);

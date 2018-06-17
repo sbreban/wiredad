@@ -196,7 +196,7 @@ func registerDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	params := mux.Vars(r)
-	fmt.Printf("Register device param: %v\n", params)
+	log.Printf("Register device param: %v\n", params)
 
 	var deviceJson Device
 	json.NewDecoder(r.Body).Decode(&deviceJson)
@@ -208,41 +208,49 @@ func registerDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	tx, err := db.Begin()
 	checkError(err)
 
-	res, err := tx.Stmt(stmt).Exec(deviceJson.Name, deviceJson.MacAddr, deviceJson.IpAddr)
-	checkError(err)
+	arr := strings.Split(deviceJson.MacAddr, ":")
+	if len(arr) != 6 {
 
-	affected, err := res.RowsAffected()
-	checkError(err)
+		log.Printf("Invalid MAC address")
 
-	tx.Commit()
+	} else {
 
-	fmt.Printf("Insert device affected rows: %d\n", affected)
-
-	rows, err := db.Query("select last_insert_rowid()")
-	checkError(err)
-
-	var deviceId int
-	if rows.Next() {
-		err = rows.Scan(&deviceId)
+		res, err := tx.Stmt(stmt).Exec(deviceJson.Name, deviceJson.MacAddr, deviceJson.IpAddr)
 		checkError(err)
-		fmt.Printf("Device id: %d\n", deviceId)
+
+		affected, err := res.RowsAffected()
+		checkError(err)
+
+		tx.Commit()
+
+		log.Printf("Insert device affected rows: %d\n", affected)
+
+		rows, err := db.Query("select last_insert_rowid()")
+		checkError(err)
+
+		var deviceId int
+		if rows.Next() {
+			err = rows.Scan(&deviceId)
+			checkError(err)
+			fmt.Printf("Device id: %d\n", deviceId)
+		}
+
+		stmt, err = db.Prepare("insert into user_device(user_id, device_id) VALUES (?, ?)")
+		checkError(err)
+
+		tx, err = db.Begin()
+		checkError(err)
+
+		res, err = tx.Stmt(stmt).Exec(params["userId"], deviceId)
+		checkError(err)
+
+		affected, err = res.RowsAffected()
+		checkError(err)
+
+		tx.Commit()
+
+		log.Printf("Insert device link affected rows: %d\n", affected)
 	}
-
-	stmt, err = db.Prepare("insert into user_device(user_id, device_id) VALUES (?, ?)")
-	checkError(err)
-
-	tx, err = db.Begin()
-	checkError(err)
-
-	res, err = tx.Stmt(stmt).Exec(params["userId"], deviceId)
-	checkError(err)
-
-	affected, err = res.RowsAffected()
-	checkError(err)
-
-	tx.Commit()
-
-	fmt.Printf("Insert device link affected rows: %d\n", affected)
 }
 
 func domainsHandler(w http.ResponseWriter, r *http.Request) {
@@ -501,7 +509,7 @@ func deviceBlockHandler(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	params := mux.Vars(r)
-	fmt.Printf("Device block params: %v\n", params)
+	log.Printf("Device block params: %v\n", params)
 
 	deviceId, err := strconv.Atoi(params["deviceId"])
 	checkError(err)
@@ -509,20 +517,22 @@ func deviceBlockHandler(w http.ResponseWriter, r *http.Request) {
 	block, err := strconv.Atoi(params["block"])
 	checkError(err)
 
-	device := getDevice(deviceId)
+	blockDevice(deviceId, block)
+}
 
+func blockDevice(deviceId int, block int) {
+	device := getDevice(deviceId)
 	var cmd *exec.Cmd
 	if block == 1 {
-		cmd = exec.Command("iptables", "-A", "INPUT", "-m", "mac", "--mac-source", device.MacAddr, "-j", "DROP")
+		cmd = exec.Command("iptables", "-A", "INPUT", "-i", "wlan0", "-m", "mac", "--mac-source", device.MacAddr, "-j", "DROP")
 	} else {
-		cmd = exec.Command("iptables", "-D", "INPUT", "-m", "mac", "--mac-source", device.MacAddr, "-j", "DROP")
+		cmd = exec.Command("iptables", "-D", "INPUT", "-i", "wlan0", "-m", "mac", "--mac-source", device.MacAddr, "-j", "DROP")
 	}
-
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	err = cmd.Run()
+	err := cmd.Run()
 	checkError(err)
-	fmt.Println(out.String())
+	log.Printf("Device block result: %s\n", out.String())
 }
 
 func topDevicesHandler(w http.ResponseWriter, r *http.Request) {
