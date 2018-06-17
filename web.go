@@ -19,6 +19,7 @@ import (
 	"net"
 	"time"
 	"bufio"
+	"github.com/robfig/cron"
 )
 
 type Route struct {
@@ -626,6 +627,22 @@ func setDeviceBlock(deviceBlock DeviceBlock) {
 
 	tx.Commit()
 
+	fromSplit := strings.Split(deviceBlock.FromTime, ":")
+	fromCron := fmt.Sprintf("0 %s %s * * *", fromSplit[1], fromSplit[0])
+	log.Printf("From cron: %s\n", fromCron)
+	c.AddFunc(fromCron, func() {
+		log.Printf("Cron unblock for %d ran\n", deviceBlock.DeviceId)
+		blockDevice(deviceBlock.DeviceId, 0)
+	})
+
+	toSplit := strings.Split(deviceBlock.ToTime, ":")
+	toCron := fmt.Sprintf("0 %s %s * * *", toSplit[1], toSplit[0])
+	log.Printf("To cron: %s\n", toCron)
+	c.AddFunc(toCron, func() {
+		log.Printf("Cron block for %d ran\n", deviceBlock.DeviceId)
+		blockDevice(deviceBlock.DeviceId, 1)
+	})
+
 	log.Printf("Set device block affected rows: %d\n", affected)
 }
 
@@ -678,17 +695,37 @@ func blockDevice(deviceId int, block int) {
 
 	fmt.Printf("Device block affected rows: %d\n", affected)
 
-	var cmd *exec.Cmd
+	deviceMAC := device.MacAddr
 	if block == 1 {
-		cmd = exec.Command("iptables", "-A", "INPUT", "-i", "wlan0", "-m", "mac", "--mac-source", device.MacAddr, "-j", "DROP")
+		executeBlockCmd(deviceMAC)
 	} else {
-		cmd = exec.Command("iptables", "-D", "INPUT", "-i", "wlan0", "-m", "mac", "--mac-source", device.MacAddr, "-j", "DROP")
+		executeUnblockCmd(deviceMAC)
 	}
+
+}
+
+func executeBlockCmd(deviceMAC string) {
+	var cmd *exec.Cmd
+
+	cmd = exec.Command("iptables", "-A", "INPUT", "-i", "wlan0", "-m", "mac", "--mac-source", deviceMAC, "-j", "DROP")
+
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	err = cmd.Run()
+	err := cmd.Run()
 	checkError(err)
 	log.Printf("Device block command result: %s\n", out.String())
+}
+
+func executeUnblockCmd(deviceMAC string) {
+	var cmd *exec.Cmd
+
+	cmd = exec.Command("iptables", "-D", "INPUT", "-i", "wlan0", "-m", "mac", "--mac-source", deviceMAC, "-j", "DROP")
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	checkError(err)
+	log.Printf("Device unblock command result: %s\n", out.String())
 }
 
 func topDevicesHandler(w http.ResponseWriter, r *http.Request) {
@@ -939,6 +976,7 @@ func validateToken(tokenString string) {
 }
 
 var secret = []byte("sesame")
+var c *cron.Cron
 
 func main() {
 	var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
@@ -952,5 +990,9 @@ func main() {
 	for _, route := range routes {
 		router.Handle(route.Pattern, jwtMiddleware.Handler(route.HandlerFunc)).Methods(route.Method)
 	}
+
+	c = cron.New()
+	c.Start()
+
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
