@@ -74,6 +74,13 @@ type DomainQueryStatistic struct {
 
 type DomainQueryStatistics []DomainQueryStatistic
 
+type DeviceBlock struct {
+	DeviceId int
+	FromTime string
+	ToTime   string
+	Block    int
+}
+
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	var userJson User
 	json.NewDecoder(r.Body).Decode(&userJson)
@@ -517,11 +524,95 @@ func deviceBlockHandler(w http.ResponseWriter, r *http.Request) {
 	block, err := strconv.Atoi(params["block"])
 	checkError(err)
 
-	blockDevice(deviceId, block)
+	deviceBlock := getDeviceBlock(deviceId)
+	if deviceBlock == nil {
+		addDeviceBlock(deviceId)
+		deviceBlock = getDeviceBlock(deviceId)
+	}
+
+	if block != deviceBlock.Block {
+		blockDevice(deviceId, block)
+	} else {
+		log.Printf("Device already in the blocking state: %d\n", block)
+	}
 }
 
+func getDeviceBlock(deviceId int) *DeviceBlock {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	rows, err := db.Query("select db.device_id, db.from_time, db.to_time, db.block from device_block db where db.device_id = ? ", deviceId)
+	checkError(err)
+	defer rows.Close()
+
+	var deviceBlock *DeviceBlock
+	for rows.Next() {
+		var deviceId int
+		var fromTime string
+		var toTime string
+		var block int
+
+		err = rows.Scan(&deviceId, &fromTime, &toTime, &block)
+		checkError(err)
+		deviceBlock = &DeviceBlock{DeviceId:deviceId, FromTime:fromTime, ToTime:toTime, Block:block}
+		log.Printf("Device block: %v\n", deviceBlock)
+	}
+	err = rows.Err()
+	checkError(err)
+
+	return deviceBlock
+}
+
+func addDeviceBlock(deviceId int) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	log.Printf("Add device block for: %d\n", deviceId)
+
+	stmt, err := db.Prepare("insert into device_block values (?, ?, ?, ?)")
+	checkError(err)
+
+	tx, err := db.Begin()
+	checkError(err)
+
+	res, err := tx.Stmt(stmt).Exec(deviceId, "00:00", "00:00", 0)
+	checkError(err)
+
+	affected, err := res.RowsAffected()
+	checkError(err)
+
+	tx.Commit()
+
+	fmt.Printf("Add device block affected rows: %d\n", affected)
+}
+
+
+
 func blockDevice(deviceId int, block int) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
 	device := getDevice(deviceId)
+
+	stmt, err := db.Prepare("update device_block set block = ? where device_id = ?")
+	checkError(err)
+
+	tx, err := db.Begin()
+	checkError(err)
+
+	res, err := tx.Stmt(stmt).Exec(block, deviceId)
+	checkError(err)
+
+	affected, err := res.RowsAffected()
+	checkError(err)
+
+	tx.Commit()
+
+	fmt.Printf("Device block affected rows: %d\n", affected)
+
 	var cmd *exec.Cmd
 	if block == 1 {
 		cmd = exec.Command("iptables", "-A", "INPUT", "-i", "wlan0", "-m", "mac", "--mac-source", device.MacAddr, "-j", "DROP")
@@ -530,9 +621,9 @@ func blockDevice(deviceId int, block int) {
 	}
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	err := cmd.Run()
+	err = cmd.Run()
 	checkError(err)
-	log.Printf("Device block result: %s\n", out.String())
+	log.Printf("Device block command result: %s\n", out.String())
 }
 
 func topDevicesHandler(w http.ResponseWriter, r *http.Request) {

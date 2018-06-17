@@ -1,4 +1,5 @@
 drop table if exists user_device;
+drop table if exists device_block;
 drop table if exists users;
 drop table if exists devices;
 drop table if exists domains;
@@ -23,9 +24,19 @@ CREATE TABLE user_device
 (
   user_id int,
   device_id int,
-  CONSTRAINT user_client_user_fk FOREIGN KEY (user_id) REFERENCES users (id),
-  CONSTRAINT user_client_client_fk FOREIGN KEY (device_id) REFERENCES devices (id)
+  CONSTRAINT user_device_user_fk FOREIGN KEY (user_id) REFERENCES users (id),
+  CONSTRAINT user_device_device_fk FOREIGN KEY (device_id) REFERENCES devices (id)
 );
+
+CREATE TABLE device_block
+(
+  device_id int,
+  from_time string,
+  to_time string,
+  block int,
+  CONSTRAINT device_block_device_fk FOREIGN KEY (device_id) REFERENCES devices (id)
+);
+
 
 create table domains
 (
