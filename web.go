@@ -15,6 +15,10 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/auth0/go-jwt-middleware"
 	"io/ioutil"
+	"strings"
+	"net"
+	"time"
+	"bufio"
 )
 
 type Route struct {
@@ -50,6 +54,15 @@ type User struct {
 	Password string
 	Admin	 int
 }
+
+type DeviceQueryStatistic struct {
+	Position int
+	Queries  int
+	Ip       string
+	Name     string
+}
+
+type DeviceQueryStatistics []DeviceQueryStatistic
 
 type Users []User
 
@@ -506,6 +519,68 @@ func deviceBlockHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(out.String())
 }
 
+func topDevicesHandler(w http.ResponseWriter, r *http.Request) {
+	addr := strings.Join([]string{"127.0.0.1", strconv.Itoa(4711)}, ":")
+	conn, err := net.Dial("tcp", addr)
+
+	defer conn.Close()
+
+	checkError(err)
+
+	message := ">top-clients"
+	conn.Write([]byte(message))
+	log.Printf("Send: %s\n", message)
+
+	timeoutDuration := 5 * time.Second
+	bufReader := bufio.NewReader(conn)
+
+	var line string
+
+	var deviceQueryStatistics DeviceQueryStatistics
+
+	for strings.Compare(line,"---EOM---") != 0 {
+		conn.SetReadDeadline(time.Now().Add(timeoutDuration))
+
+		buffer, err := bufReader.ReadBytes('\n')
+		checkError(err)
+
+		line = strings.TrimSpace(string(buffer))
+
+		compare := strings.Compare(line, "---EOM---")
+		fmt.Printf("Received: %s; Compare %d\n", line, compare)
+
+		if compare != 0 {
+			var position int
+			var queries int
+			var ip string
+			var name string
+
+			arr := strings.Split(line, " ")
+
+			log.Printf("Line split: %s\n", arr)
+
+			position, err = strconv.Atoi(arr[0])
+			checkError(err)
+
+			queries, err = strconv.Atoi(arr[1])
+			checkError(err)
+
+			ip = arr[2]
+			if len(arr) > 3 {
+				name = arr[3]
+			}
+
+			deviceQueryStatistic := DeviceQueryStatistic{Position: position, Queries: queries, Ip: ip, Name: name}
+			log.Printf("Device statistic: %v\n", deviceQueryStatistic)
+
+			deviceQueryStatistics = append(deviceQueryStatistics, deviceQueryStatistic)
+		}
+	}
+
+	json.NewEncoder(w).Encode(deviceQueryStatistics)
+	json.NewEncoder(os.Stdout).Encode(deviceQueryStatistics)
+}
+
 func checkError(err error) {
 	if err != nil {
 		panic(err)
@@ -584,6 +659,12 @@ var routes = Routes{
 		"POST",
 		"/devices/{deviceId}/{block}",
 		deviceBlockHandler,
+	},
+	Route{
+		"TopDevices",
+		"GET",
+		"/top_devices",
+		topDevicesHandler,
 	},
 }
 
