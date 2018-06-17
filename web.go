@@ -40,10 +40,10 @@ type Device struct {
 type Devices []Device
 
 type Domain struct {
-	Id       int
-	Name     string
-	Domain   string
-	Block    int
+	Id     int
+	Name   string
+	Domain string
+	Block  int
 }
 
 type Domains []Domain
@@ -52,8 +52,10 @@ type User struct {
 	Id       int
 	Username string
 	Password string
-	Admin	 int
+	Admin    int
 }
+
+type Users []User
 
 type DeviceQueryStatistic struct {
 	Position int
@@ -64,7 +66,13 @@ type DeviceQueryStatistic struct {
 
 type DeviceQueryStatistics []DeviceQueryStatistic
 
-type Users []User
+type DomainQueryStatistic struct {
+	Position int
+	Queries  int
+	Name     string
+}
+
+type DomainQueryStatistics []DomainQueryStatistic
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	var userJson User
@@ -87,7 +95,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 		err = rows.Scan(&id, &username, &password, &admin)
 		checkError(err)
-		userDb = &User{Id:id, Username:username, Password:password, Admin:admin}
+		userDb = &User{Id: id, Username: username, Password: password, Admin: admin}
 	}
 	err = rows.Err()
 	checkError(err)
@@ -117,7 +125,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 		err = rows.Scan(&id, &name)
 		checkError(err)
 		fmt.Println(id, name)
-		user := User{Id:id, Username:name}
+		user := User{Id: id, Username: name}
 		users = append(users, user)
 	}
 	err = rows.Err()
@@ -151,7 +159,6 @@ func addUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("Affected rows: %d\n", affected)
 }
-
 
 func devicesHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("sqlite3", "./clients.db")
@@ -358,7 +365,6 @@ func editDomainHandler(w http.ResponseWriter, r *http.Request) {
 	changeBlockState(domainId, domainJson.Block)
 }
 
-
 func getDomain(domainId int) Domain {
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
@@ -538,7 +544,7 @@ func topDevicesHandler(w http.ResponseWriter, r *http.Request) {
 
 	var deviceQueryStatistics DeviceQueryStatistics
 
-	for strings.Compare(line,"---EOM---") != 0 {
+	for strings.Compare(line, "---EOM---") != 0 {
 		conn.SetReadDeadline(time.Now().Add(timeoutDuration))
 
 		buffer, err := bufReader.ReadBytes('\n')
@@ -579,6 +585,64 @@ func topDevicesHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(deviceQueryStatistics)
 	json.NewEncoder(os.Stdout).Encode(deviceQueryStatistics)
+}
+
+func topDomainsHandler(w http.ResponseWriter, r *http.Request) {
+	addr := strings.Join([]string{"127.0.0.1", strconv.Itoa(4711)}, ":")
+	conn, err := net.Dial("tcp", addr)
+
+	defer conn.Close()
+
+	checkError(err)
+
+	message := ">top-domains"
+	conn.Write([]byte(message))
+	log.Printf("Send: %s\n", message)
+
+	timeoutDuration := 5 * time.Second
+	bufReader := bufio.NewReader(conn)
+
+	var line string
+
+	var domainQueryStatistics DomainQueryStatistics
+
+	for strings.Compare(line, "---EOM---") != 0 {
+		conn.SetReadDeadline(time.Now().Add(timeoutDuration))
+
+		buffer, err := bufReader.ReadBytes('\n')
+		checkError(err)
+
+		line = strings.TrimSpace(string(buffer))
+
+		compare := strings.Compare(line, "---EOM---")
+		fmt.Printf("Received: %s; Compare %d\n", line, compare)
+
+		if compare != 0 {
+			var position int
+			var queries int
+			var name string
+
+			arr := strings.Split(line, " ")
+
+			log.Printf("Line split: %s\n", arr)
+
+			position, err = strconv.Atoi(arr[0])
+			checkError(err)
+
+			queries, err = strconv.Atoi(arr[1])
+			checkError(err)
+
+			name = arr[2]
+
+			domainQueryStatistic := DomainQueryStatistic{Position: position, Queries: queries, Name: name}
+			log.Printf("Domain statistic: %v\n", domainQueryStatistic)
+
+			domainQueryStatistics = append(domainQueryStatistics, domainQueryStatistic)
+		}
+	}
+
+	json.NewEncoder(w).Encode(domainQueryStatistics)
+	json.NewEncoder(os.Stdout).Encode(domainQueryStatistics)
 }
 
 func checkError(err error) {
@@ -665,6 +729,12 @@ var routes = Routes{
 		"GET",
 		"/top_devices",
 		topDevicesHandler,
+	},
+	Route{
+		"TopDomains",
+		"GET",
+		"/top_domains",
+		topDomainsHandler,
 	},
 }
 
