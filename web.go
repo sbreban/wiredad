@@ -52,6 +52,7 @@ type Domains []Domain
 
 type User struct {
 	Id       int
+	Name     string
 	Username string
 	Password string
 	Admin    int
@@ -92,19 +93,20 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	checkError(err)
 	defer db.Close()
 
-	rows, err := db.Query("select id, username, password, admin from users where username = ? and password = ?", userJson.Username, userJson.Password)
+	rows, err := db.Query("select id, name, username, password, admin from users where username = ? and password = ?", userJson.Username, userJson.Password)
 	checkError(err)
 	defer rows.Close()
 	var userDb *User
 	for rows.Next() {
 		var id int
+		var name string
 		var username string
 		var password string
 		var admin int
 
-		err = rows.Scan(&id, &username, &password, &admin)
+		err = rows.Scan(&id, &name, &username, &password, &admin)
 		checkError(err)
-		userDb = &User{Id: id, Username: username, Password: password, Admin: admin}
+		userDb = &User{Id: id, Name: name, Username: username, Password: password, Admin: admin}
 	}
 	err = rows.Err()
 	checkError(err)
@@ -123,18 +125,19 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	fmt.Println(params)
 
-	rows, err := db.Query("select u.id, u.username from users u where u.admin = ?", params["userId"])
+	rows, err := db.Query("select u.id, u.name, u.username from users u where u.admin = ?", params["userId"])
 	checkError(err)
 	defer rows.Close()
 	var users Users
 	for rows.Next() {
 		var id int
 		var name string
+		var username string
 
-		err = rows.Scan(&id, &name)
+		err = rows.Scan(&id, &name, &username)
 		checkError(err)
-		fmt.Println(id, name)
-		user := User{Id: id, Username: name}
+		fmt.Println(id, username)
+		user := User{Id: id, Name: name, Username: username}
 		users = append(users, user)
 	}
 	err = rows.Err()
