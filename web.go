@@ -55,6 +55,7 @@ type User struct {
 	Name     string
 	Username string
 	Password string
+	Token    string
 	Admin    int
 }
 
@@ -93,7 +94,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	checkError(err)
 	defer db.Close()
 
-	rows, err := db.Query("select id, name, username, password, admin from users where username = ? and password = ?", userJson.Username, userJson.Password)
+	rows, err := db.Query("select id, name, username, password, token, admin from users where username = ? and password = ?", userJson.Username, userJson.Password)
 	checkError(err)
 	defer rows.Close()
 	var userDb *User
@@ -102,11 +103,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		var name string
 		var username string
 		var password string
+		var token string
 		var admin int
 
-		err = rows.Scan(&id, &name, &username, &password, &admin)
+		err = rows.Scan(&id, &name, &username, &password, &token, &admin)
 		checkError(err)
-		userDb = &User{Id: id, Name: name, Username: username, Password: password, Admin: admin}
+		userDb = &User{Id: id, Name: name, Username: username, Password: password, Token: token, Admin: admin}
 	}
 	err = rows.Err()
 	checkError(err)

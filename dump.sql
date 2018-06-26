@@ -13,6 +13,7 @@ create table users
   name     varchar(50),
   username varchar(50),
   password varchar(50),
+  token    varchar(50),
   admin    int
 );
 
@@ -74,9 +75,9 @@ CREATE TABLE domain_age_bracket
   CONSTRAINT domain_age_bracket_bracket_fk FOREIGN KEY (bracket_id) REFERENCES age_brackets (id)
 );
 
-insert into users values (1, 'Senior', 'sr', 'sr', 0);
-insert into users values (2, 'John F. Kennedy', 'jfk', 'jfk', 1);
-insert into users values (3, 'Franklin D. Roosevelt', 'fdr', 'fdr', 1);
+insert into users values (1, 'Senior', 'sr', 'sr', '', 0);
+insert into users values (2, 'John F. Kennedy', 'jfk', 'jfk', 'tn4vhcI1Z7BkHeb4E5ZUwA', 1);
+insert into users values (3, 'Franklin D. Roosevelt', 'fdr', 'fdr', '', 1);
 
 insert into age_brackets values (1, 'Teen', '14+');
 insert into age_brackets values (2, 'Pre-K', '7-14');
