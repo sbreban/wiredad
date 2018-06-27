@@ -938,13 +938,21 @@ func rewardHandler(w http.ResponseWriter, r *http.Request) {
 
 	if deviceBlock != nil {
 		toTimeComponents := strings.Split(deviceBlock.ToTime, ":")
+
+		hours, err := strconv.Atoi(toTimeComponents[0])
+		checkError(err)
+
 		minutes, err := strconv.Atoi(toTimeComponents[1])
 		checkError(err)
-		log.Printf("To time minutes: %d\n", minutes)
 
-		minutes = minutes + rewardJson.RewardMinutes
+		log.Printf("To time hours, minute: %d %d\n", hours, minutes)
 
-		deviceBlock.ToTime = fmt.Sprintf("%s:%d", toTimeComponents[0], minutes)
+		hours = hours + (int(minutes + rewardJson.RewardMinutes) / 60)
+		minutes = (minutes + rewardJson.RewardMinutes) % 60
+
+		log.Printf("New to time: %d:%d\n", hours, minutes)
+
+		deviceBlock.ToTime = fmt.Sprintf("%02d:%02d", hours, minutes)
 		log.Printf("New device block to time: %s\n", deviceBlock.ToTime)
 
 		setDeviceBlock(*deviceBlock)
