@@ -85,6 +85,11 @@ type DeviceBlock struct {
 	Block    int
 }
 
+type UserReward struct {
+	DeviceMAC     string
+	RewardMinutes int
+}
+
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	var userJson User
 	json.NewDecoder(r.Body).Decode(&userJson)
@@ -610,6 +615,35 @@ func getDeviceBlock(deviceId int) *DeviceBlock {
 	return deviceBlock
 }
 
+func getDeviceBlockByMAC(deviceMAC string) *DeviceBlock {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	log.Printf("Get device by MAC: %s\n", deviceMAC)
+
+	rows, err := db.Query("select db.device_id, db.from_time, db.to_time, db.block from device_block db inner join devices d on db.device_id = d.id where d.mac_addr = ? ", deviceMAC)
+	checkError(err)
+	defer rows.Close()
+
+	var deviceBlock *DeviceBlock
+	for rows.Next() {
+		var deviceId int
+		var fromTime string
+		var toTime string
+		var block int
+
+		err = rows.Scan(&deviceId, &fromTime, &toTime, &block)
+		checkError(err)
+		deviceBlock = &DeviceBlock{DeviceId:deviceId, FromTime:fromTime, ToTime:toTime, Block:block}
+		log.Printf("Device block: %v\n", deviceBlock)
+	}
+	err = rows.Err()
+	checkError(err)
+
+	return deviceBlock
+}
+
 
 func setDeviceBlock(deviceBlock DeviceBlock) {
 	db, err := sql.Open("sqlite3", "./clients.db")
@@ -890,6 +924,35 @@ func topDomainsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(os.Stdout).Encode(domainQueryStatistics)
 }
 
+func rewardHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	var rewardJson UserReward
+	json.NewDecoder(r.Body).Decode(&rewardJson)
+	fmt.Printf("New reward: %v\n", rewardJson)
+
+	deviceBlock := getDeviceBlockByMAC(rewardJson.DeviceMAC)
+	log.Printf("Device block: %v\n", deviceBlock)
+
+	if deviceBlock != nil {
+		toTimeComponents := strings.Split(deviceBlock.ToTime, ":")
+		minutes, err := strconv.Atoi(toTimeComponents[1])
+		checkError(err)
+		log.Printf("To time minutes: %d\n", minutes)
+
+		minutes = minutes + rewardJson.RewardMinutes
+
+		deviceBlock.ToTime = fmt.Sprintf("%s:%d", toTimeComponents[0], minutes)
+		log.Printf("New device block to time: %s\n", deviceBlock.ToTime)
+
+		setDeviceBlock(*deviceBlock)
+
+		log.Printf("Reward handled\n")
+	}
+}
+
 func checkError(err error) {
 	if err != nil {
 		panic(err)
@@ -992,6 +1055,12 @@ var routes = Routes{
 		"GET",
 		"/top_domains",
 		topDomainsHandler,
+	},
+	Route{
+		"Reward",
+		"POST",
+		"/reward",
+		rewardHandler,
 	},
 }
 
