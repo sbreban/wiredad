@@ -90,7 +90,7 @@ insert into devices values (1, 'nexus', 'DC:0B:34:CC:B0:FF', '192.168.0.103');
 insert into devices values (2, 'tablet', 'AB:CB:F6:H7:67:HG', '192.168.0.104');
 insert into devices values (3, 'windows-phone', '3c:83:75:d0:da:c4', '192.168.0.105');
 
-insert into device_block values (1, '18:00', '21:00', 1);
+insert into device_block values (1, '22:20', '22:25', 1);
 insert into device_block values (2, '19:00', '21:00', 1);
 insert into device_block values (3, '17:00', '21:00', 1);
 

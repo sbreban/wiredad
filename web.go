@@ -783,24 +783,36 @@ func blockDevice(deviceId int, block int) {
 func executeBlockCmd(deviceMAC string) {
 	var cmd *exec.Cmd
 
-	cmd = exec.Command("iptables", "-A", "INPUT", "-i", "wlan0", "-m", "mac", "--mac-source", deviceMAC, "-j", "DROP")
-
 	var out bytes.Buffer
+
+	cmd = exec.Command("iptables", "-D", "FORWARD", "-i", "wlan0", "-o", "eth0", "-m", "mac", "--mac-source", deviceMAC, "-j", "ACCEPT")
 	cmd.Stdout = &out
 	err := cmd.Run()
 	checkError(err)
+
+	cmd = exec.Command("iptables", "-D", "FORWARD", "-i", "eth0", "-o", "wlan0", "-m", "mac", "--mac-source", deviceMAC, "-j", "ACCEPT")
+	cmd.Stdout = &out
+	err = cmd.Run()
+	checkError(err)
+
 	log.Printf("Device block command result: %s\n", out.String())
 }
 
 func executeUnblockCmd(deviceMAC string) {
 	var cmd *exec.Cmd
 
-	cmd = exec.Command("iptables", "-D", "INPUT", "-i", "wlan0", "-m", "mac", "--mac-source", deviceMAC, "-j", "DROP")
-
 	var out bytes.Buffer
+
+	cmd = exec.Command("iptables", "-t", "filter", "-I", "FORWARD", "1", "-i", "wlan0", "-o", "eth0", "-m", "mac", "--mac-source", deviceMAC, "-j", "ACCEPT")
 	cmd.Stdout = &out
 	err := cmd.Run()
 	checkError(err)
+
+	cmd = exec.Command("iptables", "-t", "filter", "-I", "FORWARD", "1", "-i", "eth0", "-o", "wlan0", "-m", "mac", "--mac-source", deviceMAC, "-j", "ACCEPT")
+	cmd.Stdout = &out
+	err = cmd.Run()
+	checkError(err)
+
 	log.Printf("Device unblock command result: %s\n", out.String())
 }
 
