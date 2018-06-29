@@ -51,12 +51,13 @@ type Domain struct {
 type Domains []Domain
 
 type User struct {
-	Id       int
-	Name     string
-	Username string
-	Password string
-	Token    string
-	Admin    int
+	Id         int
+	Name       string
+	Username   string
+	Password   string
+	Token      string
+	Admin      int
+	AgeBracket string
 }
 
 type Users []User
@@ -132,7 +133,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	fmt.Println(params)
 
-	rows, err := db.Query("select u.id, u.name, u.username from users u where u.admin = ?", params["userId"])
+	rows, err := db.Query("select u.id, u.name, u.username, a.name from users u inner join user_age_bracket b on u.id = b.user_id inner join age_brackets a on b.bracket_id = a.id where u.admin = ?", params["userId"])
 	checkError(err)
 	defer rows.Close()
 	var users Users
@@ -140,11 +141,12 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 		var id int
 		var name string
 		var username string
+		var ageBracket string
 
-		err = rows.Scan(&id, &name, &username)
+		err = rows.Scan(&id, &name, &username, &ageBracket)
 		checkError(err)
 		fmt.Println(id, username)
-		user := User{Id: id, Name: name, Username: username}
+		user := User{Id: id, Name: name, Username: username, AgeBracket: ageBracket}
 		users = append(users, user)
 	}
 	err = rows.Err()
