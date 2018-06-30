@@ -992,6 +992,70 @@ func topDomainsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(os.Stdout).Encode(domainQueryStatistics)
 }
 
+func allQueriesClientHandler(w http.ResponseWriter, r *http.Request) {
+	addr := strings.Join([]string{"127.0.0.1", strconv.Itoa(4711)}, ":")
+	conn, err := net.Dial("tcp", addr)
+	checkError(err)
+	defer conn.Close()
+
+	params := mux.Vars(r)
+	log.Printf("All queries client params: %v\n", params)
+
+	deviceId, err := strconv.Atoi(params["deviceId"])
+	checkError(err)
+	device := getDevice(deviceId)
+
+	message := fmt.Sprintf(">getallqueries-client %s", device.IpAddr)
+	conn.Write([]byte(message))
+	log.Printf("Send: %s\n", message)
+
+	timeoutDuration := 5 * time.Second
+	bufReader := bufio.NewReader(conn)
+
+	var line string
+
+	var domainQueryStatistics DomainQueryStatistics
+
+	for strings.Compare(line, "---EOM---") != 0 {
+		conn.SetReadDeadline(time.Now().Add(timeoutDuration))
+
+		buffer, err := bufReader.ReadBytes('\n')
+		checkError(err)
+
+		line = strings.TrimSpace(string(buffer))
+
+		compare := strings.Compare(line, "---EOM---")
+		fmt.Printf("Received: %s; Compare %d\n", line, compare)
+
+		if compare != 0 {
+			var position int
+			var queries int
+			var name string
+
+			arr := strings.Split(line, " ")
+
+			log.Printf("Line split: %s\n", arr)
+
+			position, err = strconv.Atoi(arr[0])
+			checkError(err)
+
+			queries, err = strconv.Atoi(arr[4])
+			checkError(err)
+
+			name = arr[2]
+
+			domainQueryStatistic := DomainQueryStatistic{Position: position, Queries: queries, Name: name}
+			log.Printf("All queries client: %v\n", domainQueryStatistic)
+
+			domainQueryStatistics = append(domainQueryStatistics, domainQueryStatistic)
+		}
+	}
+
+	json.NewEncoder(w).Encode(domainQueryStatistics)
+	json.NewEncoder(os.Stdout).Encode(domainQueryStatistics)
+}
+
+
 func rewardHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
@@ -1166,6 +1230,12 @@ var routes = Routes{
 		"GET",
 		"/age_brackets",
 		ageBracketsHandler,
+	},
+	Route{
+		"AllQueriesClient",
+		"GET",
+		"/all_queries_client/{deviceId}",
+		allQueriesClientHandler,
 	},
 }
 
