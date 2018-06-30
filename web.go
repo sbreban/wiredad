@@ -709,6 +709,7 @@ func setDeviceBlock(deviceBlock DeviceBlock) {
 	log.Printf("Set device block for: %v\n", deviceBlock)
 
 	stmt, err := db.Prepare("update device_block set from_time = ?, to_time = ? where device_id = ?")
+	defer stmt.Close()
 	checkError(err)
 
 	tx, err := db.Begin()
@@ -787,6 +788,7 @@ func addDeviceBlock(deviceId int) {
 
 	stmt, err := db.Prepare("insert into device_block values (?, ?, ?, ?)")
 	checkError(err)
+	defer stmt.Close()
 
 	tx, err := db.Begin()
 	checkError(err)
@@ -813,6 +815,7 @@ func blockDevice(deviceId int, block int) {
 
 	stmt, err := db.Prepare("update device_block set block = ? where device_id = ?")
 	checkError(err)
+	defer stmt.Close()
 
 	tx, err := db.Begin()
 	checkError(err)
