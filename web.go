@@ -158,27 +158,72 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 func addUserHandler(w http.ResponseWriter, r *http.Request) {
 	var userJson User
 	json.NewDecoder(r.Body).Decode(&userJson)
-	fmt.Printf("New user: %v\n", userJson)
+	log.Printf("New user: %v\n", userJson)
 
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
 	defer db.Close()
 
-	stmt, err := db.Prepare("insert into users(username, password, admin) values (?, ?, ?)")
+	stmt, err := db.Prepare("insert into users(name, username, password, admin) values (?, ?, ?, ?)")
 	checkError(err)
+	defer stmt.Close()
 
 	tx, err := db.Begin()
 	checkError(err)
 
-	res, err := tx.Stmt(stmt).Exec(userJson.Username, userJson.Password, userJson.Admin)
+	res, err := tx.Stmt(stmt).Exec(userJson.Name, userJson.Username, userJson.Password, userJson.Admin)
 	checkError(err)
 
 	affected, err := res.RowsAffected()
 	checkError(err)
 
+	lastInsertId, err := res.LastInsertId()
+	checkError(err)
+
 	tx.Commit()
 
-	fmt.Printf("Affected rows: %d\n", affected)
+	log.Printf("Add user affected rows: %d insert id: %d\n", affected, lastInsertId)
+
+	ageBracketId := getAgeBracketId(userJson.AgeBracket)
+
+	log.Printf("Insert age bracket ids: %d %d\n", lastInsertId, ageBracketId)
+
+	stmt, err = db.Prepare("insert into user_age_bracket(user_id, bracket_id) values (?, ?)")
+	checkError(err)
+	defer stmt.Close()
+
+	tx, err = db.Begin()
+	checkError(err)
+
+	res, err = tx.Stmt(stmt).Exec(lastInsertId, ageBracketId)
+	checkError(err)
+
+	affected, err = res.RowsAffected()
+	checkError(err)
+
+	tx.Commit()
+
+	log.Printf("Insert bracket affected rows: %d\n", affected)
+}
+
+func getAgeBracketId(ageBracket string) int {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	rows, err := db.Query("select id from age_brackets where name = ? ", ageBracket)
+	checkError(err)
+	defer rows.Close()
+
+	var ageBracketId int
+	for rows.Next() {
+		err = rows.Scan(&ageBracketId)
+		checkError(err)
+	}
+	err = rows.Err()
+	checkError(err)
+
+	return ageBracketId
 }
 
 func devicesHandler(w http.ResponseWriter, r *http.Request) {
@@ -975,6 +1020,29 @@ func rewardHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func ageBracketsHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	rows, err := db.Query("select name from age_brackets")
+	checkError(err)
+	defer rows.Close()
+
+	var ageBrackets[] string
+	for rows.Next() {
+		var ageBracket string
+
+		err = rows.Scan(&ageBracket)
+		checkError(err)
+		ageBrackets = append(ageBrackets, ageBracket)
+	}
+	err = rows.Err()
+	checkError(err)
+	json.NewEncoder(w).Encode(ageBrackets)
+	json.NewEncoder(os.Stdout).Encode(ageBrackets)
+}
+
 func checkError(err error) {
 	if err != nil {
 		panic(err)
@@ -1083,6 +1151,12 @@ var routes = Routes{
 		"POST",
 		"/reward",
 		rewardHandler,
+	},
+	Route{
+		"AgeBrackets",
+		"GET",
+		"/age_brackets",
+		ageBracketsHandler,
 	},
 }
 
