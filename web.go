@@ -992,6 +992,36 @@ func topDomainsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(os.Stdout).Encode(domainQueryStatistics)
 }
 
+func getDomainsForUserAgeBracket(deviceId int) []string {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	rows, err := db.Query("select d.domain from domains d " +
+		"inner join domain_age_bracket b on d.id = b.domain_id " +
+		"inner join user_age_bracket uab on b.bracket_id = uab.bracket_id " +
+		"inner join users u on uab.user_id = u.id " +
+		"inner join user_device device on u.id = device.user_id " +
+		"where device.device_id = ?", deviceId)
+	checkError(err)
+	defer rows.Close()
+
+	var domains []string
+	for rows.Next() {
+		var domain string
+
+		err = rows.Scan(&domain)
+		checkError(err)
+		log.Printf("Domain for user age bracket: %s\n", domain)
+
+		domains = append(domains, domain)
+	}
+	err = rows.Err()
+	checkError(err)
+
+	return domains
+}
+
 func allQueriesClientHandler(w http.ResponseWriter, r *http.Request) {
 	addr := strings.Join([]string{"127.0.0.1", strconv.Itoa(4711)}, ":")
 	conn, err := net.Dial("tcp", addr)
@@ -1004,6 +1034,8 @@ func allQueriesClientHandler(w http.ResponseWriter, r *http.Request) {
 	deviceId, err := strconv.Atoi(params["deviceId"])
 	checkError(err)
 	device := getDevice(deviceId)
+
+	domains := getDomainsForUserAgeBracket(deviceId)
 
 	message := fmt.Sprintf(">getallqueries-client %s", device.IpAddr)
 	conn.Write([]byte(message))
@@ -1025,7 +1057,7 @@ func allQueriesClientHandler(w http.ResponseWriter, r *http.Request) {
 		line = strings.TrimSpace(string(buffer))
 
 		compare := strings.Compare(line, "---EOM---")
-		fmt.Printf("Received: %s; Compare %d\n", line, compare)
+		log.Printf("Received: %s; Compare %d\n", line, compare)
 
 		if compare != 0 {
 			var position int
@@ -1033,8 +1065,6 @@ func allQueriesClientHandler(w http.ResponseWriter, r *http.Request) {
 			var name string
 
 			arr := strings.Split(line, " ")
-
-			log.Printf("Line split: %s\n", arr)
 
 			position, err = strconv.Atoi(arr[0])
 			checkError(err)
@@ -1044,10 +1074,20 @@ func allQueriesClientHandler(w http.ResponseWriter, r *http.Request) {
 
 			name = arr[2]
 
-			domainQueryStatistic := DomainQueryStatistic{Position: position, Queries: queries, Name: name}
-			log.Printf("All queries client: %v\n", domainQueryStatistic)
+			add := false
+			for i := range domains {
+				if strings.Contains(name, domains[i]) {
+					log.Printf("Found domain: %s\n", domains[i])
+					add = true
+				}
+			}
 
-			domainQueryStatistics = append(domainQueryStatistics, domainQueryStatistic)
+			if add {
+				domainQueryStatistic := DomainQueryStatistic{Position: position, Queries: queries, Name: name}
+				log.Printf("All queries client: %v\n", domainQueryStatistic)
+				domainQueryStatistics = append(domainQueryStatistics, domainQueryStatistic)
+			}
+
 		}
 	}
 
