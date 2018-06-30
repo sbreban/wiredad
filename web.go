@@ -94,7 +94,7 @@ type UserReward struct {
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	var userJson User
 	json.NewDecoder(r.Body).Decode(&userJson)
-	fmt.Println(userJson)
+	log.Println(userJson)
 
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
@@ -103,6 +103,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query("select id, name, username, password, token, admin from users where username = ? and password = ?", userJson.Username, userJson.Password)
 	checkError(err)
 	defer rows.Close()
+
 	var userDb *User
 	for rows.Next() {
 		var id int
@@ -131,11 +132,12 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	params := mux.Vars(r)
-	fmt.Println(params)
+	log.Println(params)
 
 	rows, err := db.Query("select u.id, u.name, u.username, a.name from users u inner join user_age_bracket b on u.id = b.user_id inner join age_brackets a on b.bracket_id = a.id where u.admin = ?", params["userId"])
 	checkError(err)
 	defer rows.Close()
+
 	var users Users
 	for rows.Next() {
 		var id int
@@ -145,7 +147,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 
 		err = rows.Scan(&id, &name, &username, &ageBracket)
 		checkError(err)
-		fmt.Println(id, username)
+		log.Println(id, username)
 		user := User{Id: id, Name: name, Username: username, AgeBracket: ageBracket}
 		users = append(users, user)
 	}
@@ -237,6 +239,7 @@ func devicesHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query("select d.id, d.name, d.mac_addr, d.ip_addr, db.block from devices d inner join user_device ud on d.id = ud.device_id left join device_block db on d.id = db.device_id where ud.user_id = ?", params["userId"])
 	checkError(err)
 	defer rows.Close()
+
 	var devices Devices
 	for rows.Next() {
 		var id int
@@ -276,6 +279,7 @@ func registerDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 	stmt, err := db.Prepare("insert into devices(name, mac_addr, ip_addr) VALUES (?, ?, ?)")
 	checkError(err)
+	defer stmt.Close()
 
 	tx, err := db.Begin()
 	checkError(err)
@@ -309,6 +313,7 @@ func registerDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 		stmt, err = db.Prepare("insert into user_device(user_id, device_id) VALUES (?, ?)")
 		checkError(err)
+		defer stmt.Close()
 
 		tx, err = db.Begin()
 		checkError(err)
@@ -360,10 +365,11 @@ func addDomainHandler(w http.ResponseWriter, r *http.Request) {
 
 	var domainJson Domain
 	json.NewDecoder(r.Body).Decode(&domainJson)
-	fmt.Printf("New domain: %v\n", domainJson)
+	log.Printf("New domain: %v\n", domainJson)
 
 	stmt, err := db.Prepare("insert into domains(name, domain, block) VALUES (?, ?, ?)")
 	checkError(err)
+	defer stmt.Close()
 
 	tx, err := db.Begin()
 	checkError(err)
@@ -376,7 +382,7 @@ func addDomainHandler(w http.ResponseWriter, r *http.Request) {
 
 	tx.Commit()
 
-	fmt.Printf("Insert domain affected rows: %d\n", affected)
+	log.Printf("Insert domain affected rows: %d\n", affected)
 }
 
 func deleteDomainHandler(w http.ResponseWriter, r *http.Request) {
@@ -394,6 +400,7 @@ func deleteDomainHandler(w http.ResponseWriter, r *http.Request) {
 
 	stmt, err := db.Prepare("delete from domains where id = ?")
 	checkError(err)
+	defer stmt.Close()
 
 	tx, err := db.Begin()
 	checkError(err)
@@ -428,6 +435,7 @@ func editDomainHandler(w http.ResponseWriter, r *http.Request) {
 
 	stmt, err := db.Prepare("update domains set domain = ? where id = ?")
 	checkError(err)
+	defer stmt.Close()
 
 	tx, err := db.Begin()
 	checkError(err)
@@ -509,6 +517,7 @@ func domainBlockHandler(w http.ResponseWriter, r *http.Request) {
 
 	stmt, err := db.Prepare("update domains set block = ? where id = ?")
 	checkError(err)
+	defer stmt.Close()
 
 	tx, err := db.Begin()
 	checkError(err)
@@ -527,7 +536,7 @@ func domainBlockHandler(w http.ResponseWriter, r *http.Request) {
 
 	tx.Commit()
 
-	fmt.Printf("Domain block affected rows: %d\n", affected)
+	log.Printf("Domain block affected rows: %d\n", affected)
 
 	changeBlockState(domainId, block)
 }
@@ -544,7 +553,7 @@ func changeBlockState(domainId int, block int) {
 	cmd.Stdout = &out
 	err := cmd.Run()
 	checkError(err)
-	fmt.Println(out.String())
+	log.Println(out.String())
 }
 
 func checkDeviceRegistration(w http.ResponseWriter, r *http.Request) {

@@ -100,4 +100,8 @@ insert into user_device values (3, 3);
 
 insert into domains values (1, 'Facebook', 'facebook.com', 0);
 insert into domains values (2, 'Instagram', 'instagram.com', 0);
-insert into domains values (3, 'Strava', 'strava.com', 0);
+insert into domains values (3, 'Youtube', 'youtube.com', 0);
+
+insert into domain_age_bracket values (1, 1);
+insert into domain_age_bracket values (2, 1);
+insert into domain_age_bracket values (3, 2);
