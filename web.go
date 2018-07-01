@@ -326,6 +326,8 @@ func registerDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 		tx.Commit()
 
+		addDeviceBlock(deviceId)
+
 		log.Printf("Insert device link affected rows: %d\n", affected)
 	}
 }
@@ -793,7 +795,7 @@ func addDeviceBlock(deviceId int) {
 	tx, err := db.Begin()
 	checkError(err)
 
-	res, err := tx.Stmt(stmt).Exec(deviceId, "00:00", "00:00", 0)
+	res, err := tx.Stmt(stmt).Exec(deviceId, "00:00", "00:01", 1)
 	checkError(err)
 
 	affected, err := res.RowsAffected()
