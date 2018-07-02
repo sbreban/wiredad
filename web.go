@@ -509,6 +509,33 @@ func getDevice(deviceId int) Device {
 	return device
 }
 
+func getDeviceByIP(deviceIP string) *Device {
+	db, err := sql.Open("sqlite3", "./clients.db")
+	checkError(err)
+	defer db.Close()
+
+	rows, err := db.Query("select d.id, d.name, d.mac_addr, d.ip_addr from devices d where d.ip_addr = ? ", deviceIP)
+	checkError(err)
+	defer rows.Close()
+
+	var device *Device
+	for rows.Next() {
+		var id int
+		var name string
+		var macAddr string
+		var ipAddr string
+
+		err = rows.Scan(&id, &name, &macAddr, &ipAddr)
+		checkError(err)
+		device = &Device{Id: id, Name: name, MacAddr: macAddr, IpAddr: ipAddr}
+		fmt.Printf("Device: %v\n", device)
+	}
+	err = rows.Err()
+	checkError(err)
+
+	return device
+}
+
 func domainBlockHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("sqlite3", "./clients.db")
 	checkError(err)
@@ -926,6 +953,11 @@ func topDevicesHandler(w http.ResponseWriter, r *http.Request) {
 			ip = arr[2]
 			if len(arr) > 3 {
 				name = arr[3]
+			} else {
+				device := getDeviceByIP(ip)
+				if device != nil {
+					name = device.Name
+				}
 			}
 
 			deviceQueryStatistic := DeviceQueryStatistic{Position: position, Queries: queries, Ip: ip, Name: name}
